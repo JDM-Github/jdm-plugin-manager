@@ -1,0 +1,30 @@
+{
+    "health": {
+        "link": "/api",
+        "masterEnabled": true
+    },
+    "plugin": {
+        "link": "/api/plugin",
+        "masterEnabled": true,
+        "disabledOnProduction": false,
+        "disabledOnDeployed": false
+    },
+    "client": {
+        "link": "/api/client",
+        "masterEnabled": true,
+        "disabledOnProduction": false,
+        "disabledOnDeployed": false
+    },
+    "auth": {
+        "link": "/api/auth",
+        "masterEnabled": true,
+        "disabledOnProduction": false,
+        "disabledOnDeployed": false
+    },
+    "manage": {
+        "link": "/api/manage",
+        "masterEnabled": true,
+        "disabledOnProduction": false,
+        "disabledOnDeployed": false
+    }
+}

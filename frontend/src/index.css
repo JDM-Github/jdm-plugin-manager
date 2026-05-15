@@ -1,0 +1,462 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────
+   DESIGN TOKENS — JDM CLI × Portfolio
+   Aesthetic: Cyberpunk Dark Ops Dashboard
+───────────────────────────────────────── */
+@theme {
+  /* Backgrounds */
+  --color-bg: #04060c;
+  --color-surface: #080a10;
+  --color-surface2: #0c0f18;
+  --color-surface3: #10141f;
+
+  /* Borders — slightly more visible */
+  --color-border: rgba(96, 196, 255, 0.12);
+  --color-border2: rgba(96, 196, 255, 0.22);
+
+  /* Accent: JDM electric blue */
+  --color-accent: #60c4ff;
+  --color-accent2: #3a9fd9;
+  --color-accent-dim: rgba(96, 196, 255, 0.08);
+  --color-accent-border: rgba(96, 196, 255, 0.20);
+
+  /* Status */
+  --color-pos: #10B981;
+  --color-neg: #EF4444;
+  --color-neu: #F59E0B;
+
+  /* Text — improved contrast */
+  --color-text: #ffffff;                        /* was 0.88 — now full white */
+  --color-text-muted: rgba(255, 255, 255, 0.65); /* was 0.40 — much easier to read */
+  --color-text-faint: rgba(255, 255, 255, 0.40); /* was 0.18 — now actually visible */
+
+  /* Fonts */
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Orbitron', monospace;
+
+  /* Sizes */
+  --spacing-sidebar: 220px;
+  --spacing-header: 52px;
+  --spacing-footer: 40px;
+}
+
+* {
+  user-select: none;
+  font-family: 'DM Sans' !important;
+}
+
+/* ── Base ─────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;               /* explicit base size for clarity */
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ────────────────────────── */
+::-webkit-scrollbar {
+  width: 1px;
+  height: 1px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(27, 159, 236, 0.63);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 162, 255, 0.692);
+}
+
+/* ── Keyframes ────────────────────────── */
+@keyframes healthPing {
+  0% {
+    transform: scale(1);
+    opacity: .5;
+  }
+
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes jdm-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}
+
+/* ── Background animation keyframes ──── */
+@keyframes orb-drift-a {
+
+  0%,
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+
+  25% {
+    transform: translate(50px, -40px) scale(1.07);
+  }
+
+  50% {
+    transform: translate(20px, 60px) scale(0.93);
+  }
+
+  75% {
+    transform: translate(-40px, 25px) scale(1.03);
+  }
+}
+
+@keyframes orb-drift-b {
+
+  0%,
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+
+  30% {
+    transform: translate(-55px, 35px) scale(1.09);
+  }
+
+  65% {
+    transform: translate(35px, -45px) scale(0.91);
+  }
+
+  85% {
+    transform: translate(-15px, -20px) scale(1.04);
+  }
+}
+
+@keyframes orb-drift-c {
+
+  0%,
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+
+  50% {
+    transform: translate(65px, -50px) scale(1.12);
+  }
+}
+
+@keyframes grid-drift {
+  0% {
+    background-position: 0px 0px;
+  }
+
+  100% {
+    background-position: 0px 48px;
+  }
+}
+
+/* ── Utilities ────────────────────────── */
+@utility animate-shimmer {
+  background: linear-gradient(90deg,
+      var(--color-surface) 25%,
+      var(--color-surface3) 50%,
+      var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@utility animate-fade-up {
+  animation: fadeUp .22s ease-out both;
+}
+
+@utility animate-health-ping {
+  animation: healthPing 1.4s ease-out infinite;
+}
+
+@utility glow-accent {
+  box-shadow: 0 0 12px rgba(96, 196, 255, 0.15), 0 0 32px rgba(96, 196, 255, 0.06);
+}
+
+@utility glow-accent-text {
+  text-shadow: 0 0 12px rgba(96, 196, 255, 0.6), 0 0 32px rgba(96, 196, 255, 0.25);
+}
+
+@utility font-display {
+  font-family: 'Orbitron', monospace;
+}
+
+/* ── Background animation utilities ──── */
+@utility animate-orb-a {
+  animation: orb-drift-a 16s ease-in-out infinite;
+}
+
+@utility animate-orb-b {
+  animation: orb-drift-b 21s ease-in-out infinite;
+}
+
+@utility animate-orb-c {
+  animation: orb-drift-c 12s ease-in-out infinite;
+}
+
+@utility animate-grid-drift {
+  animation: grid-drift 24s linear infinite;
+}
+
+@utility bg-grid-lines {
+  background-image:
+    linear-gradient(rgba(96, 196, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 196, 255, 0.055) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@utility bg-scanlines {
+  background-image: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 3px,
+      rgba(0, 0, 0, 0.06) 3px,
+      rgba(0, 0, 0, 0.06) 4px);
+}
+
+@utility bg-vignette {
+  background: radial-gradient(ellipse at center,
+      transparent 35%,
+      rgba(4, 6, 12, 0.55) 70%,
+      rgba(4, 6, 12, 0.90) 100%);
+}
+
+@keyframes stream-fall {
+  0% {
+    transform: translateY(-120px);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+@keyframes scan-sweep {
+  0% {
+    top: -2px;
+    opacity: 0;
+  }
+
+  5% {
+    opacity: 1;
+  }
+
+  95% {
+    opacity: 0.6;
+  }
+
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes corner-pulse {
+
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(96, 196, 255, 0.8);
+  }
+
+  50% {
+    opacity: 0.3;
+    box-shadow: none;
+  }
+}
+
+@keyframes label-fade {
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* ── Readme prose ── */
+.readme-prose {
+  font-size: 13px;               /* was 12px */
+  line-height: 1.75;             /* slightly more breathing room */
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.readme-prose h1 {
+  font-size: 17px;               /* was 16px */
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+}
+
+.readme-prose h2 {
+  font-size: 14px;               /* was 13px */
+  font-weight: 600;
+  color: var(--color-text);      /* full white for headings */
+  margin: 20px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border2);
+}
+
+.readme-prose h3 {
+  font-size: 12px;               /* was 11px */
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-accent) 85%, transparent);
+  margin: 16px 0 4px;
+}
+
+.readme-prose p  { margin: 6px 0; }
+.readme-prose ul, .readme-prose ol { padding-left: 18px; margin: 6px 0; }
+.readme-prose li { margin: 3px 0; }
+.readme-prose ul li::marker { color: color-mix(in srgb, var(--color-accent) 50%, transparent); }
+
+.readme-prose code {
+  font-size: 11px;               /* was 10px */
+  font-family: var(--font-mono);
+  color: color-mix(in srgb, var(--color-accent) 90%, transparent);
+  background: var(--color-accent-dim);
+  border: 1px solid var(--color-accent-border);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.readme-prose pre {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.readme-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;               /* was 10px */
+  color: var(--color-text-muted);
+}
+
+.readme-prose blockquote {
+  border-left: 2px solid var(--color-accent);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.readme-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.85;
+}
+
+.readme-prose a:hover { opacity: 1; }
+
+.readme-prose hr {
+  border: none;
+  border-top: 1px solid var(--color-border2);
+  margin: 16px 0;
+}
+
+/* GFM tables */
+.readme-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;               /* was 10px */
+  margin: 10px 0;
+}
+
+.readme-prose th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border2);
+  color: var(--color-text-muted); /* was text-faint — now readable */
+  font-size: 11px;               /* was 9px — too small */
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.readme-prose td {
+  padding: 6px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.readme-prose tr:last-child td { border-bottom: none; }
