@@ -5,10 +5,11 @@ type Props = {
     schema: PluginSchema;
     activeCommand: Command | null;
     panelHeight: string;
+    running: boolean;
     onSelect: (cmd: Command) => void;
 };
 
-export default function CommandPanel({ schema, activeCommand, panelHeight, onSelect }: Props) {
+export default function CommandPanel({ schema, activeCommand, panelHeight, running, onSelect }: Props) {
     return (
         <div className={`bg-surface border border-accent-border rounded-[12px] overflow-hidden flex flex-col ${panelHeight}`}>
 
@@ -41,11 +42,14 @@ export default function CommandPanel({ schema, activeCommand, panelHeight, onSel
                     return (
                         <button
                             key={cmd.name}
+                            disabled={running && !isActive}
                             className={`w-full text-left flex items-center gap-3 px-2.5 py-2.5 rounded-[8px] transition-all duration-150 border group/cmd ${isActive
-                                ? "bg-accent-dim border-accent-border"
-                                : "border-transparent hover:bg-surface3 hover:border-border"
+                                    ? "bg-accent-dim border-accent-border"
+                                    : running
+                                        ? "border-transparent opacity-40 cursor-not-allowed"
+                                        : "border-transparent hover:bg-surface3 hover:border-border"
                                 }`}
-                            onClick={() => onSelect(cmd)}
+                            onClick={() => !running && onSelect(cmd)}
                         >
                             <span className={`w-[3px] h-4 rounded-full shrink-0 transition-all duration-150 ${isActive ? "bg-accent" : "bg-border group-hover/cmd:bg-border2"}`} />
                             <div className="min-w-0">

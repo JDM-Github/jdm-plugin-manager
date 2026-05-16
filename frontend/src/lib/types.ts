@@ -145,3 +145,22 @@ export type PluginSchema = {
     description: string;
     commands: Command[];
 };
+
+export interface TabState {
+    id: string;
+    label: string;
+    workDir: string;
+    activeCommand: Command | null;
+    fieldValues: Record<string, string | boolean>;
+    running: boolean;
+    logs: LogLine[];
+    done: boolean;
+    exitOk: boolean;
+    prompt: string | null;
+    promptInput: string;
+}
+
+export interface TabStore {
+    tabs: TabState[];
+    activeTabId: string;
+}
