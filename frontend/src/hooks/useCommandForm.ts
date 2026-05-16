@@ -3,7 +3,7 @@ import type { Command, Field } from "../lib/types";
 
 interface UseCommandFormProps {
     activeCommand: Command | null;
-    fieldValues: Record<string, string | boolean>;  // ← owned by caller now
+    fieldValues: Record<string, string | boolean>;
 }
 
 export function useCommandForm({ activeCommand, fieldValues }: UseCommandFormProps) {
@@ -75,10 +75,14 @@ export function useCommandForm({ activeCommand, fieldValues }: UseCommandFormPro
 
         for (const f of activeCommand.fields) {
             if (!isFieldActive(f, activeSwitchTarget, disabledClasses, switchTargets)) continue;
+            if (!f.flag) continue;
+
             const val = fieldValues[f.key];
             if (val === undefined || val === "" || val === false) continue;
-            args[f.key] = val;
+            const flagKey = f.flag.replace(/^--/, "");
+            args[flagKey] = val;
         }
+
         return args;
     }, [activeCommand, fieldValues, getActiveSwitchTarget, getDisabledClasses, getSwitchTargets, isFieldActive]);
 
@@ -100,6 +104,5 @@ export function useCommandForm({ activeCommand, fieldValues }: UseCommandFormPro
         return parts.join(" ");
     }, [activeCommand, fieldValues, getActiveSwitchTarget, getDisabledClasses, getSwitchTargets, isFieldActive]);
 
-    // No updateField or setFieldValues — caller owns the state
     return { validate, buildArgs, buildPreview };
 }
