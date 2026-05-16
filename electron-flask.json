@@ -1,7 +1,7 @@
 {
-    "version": "1.0.0",
-    "name": "JDM Plugin Manager",
-    "appId": "com.jdm.jdm-plugin-manager.app",
-    "author": "JDM",
-    "github": "JDM-Github"
+  "version": "1.0.1",
+  "name": "JDM Plugin Manager",
+  "appId": "com.jdm.jdm-plugin-manager.app",
+  "author": "JDM",
+  "github": "JDM-Github"
 }

@@ -5,4 +5,4 @@ waitress
 requests
 simple-websocket
 pyarmor
-jdm-electron-flask>=1.0.5
+jdm-electron-flask>=1.0.7

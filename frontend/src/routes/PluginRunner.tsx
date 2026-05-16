@@ -1,5 +1,5 @@
 // ─── PluginRunner.tsx ─────────────────────────────────────────
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import type { Command, LogLine } from "../lib/types";
@@ -27,6 +27,7 @@ export default function PluginRunner() {
 
     const [activeCommand, setActiveCommand] = useState<Command | null>(null);
     const { fieldValues, validate, buildArgs, buildPreview, updateField } = useCommandForm({ activeCommand });
+    const handlersRef = useRef<Record<string, (data: any) => void> | null>(null);
 
     const [running, setRunning] = useState(false);
     const [logs, setLogs] = useState<LogLine[]>([]);
@@ -48,7 +49,6 @@ export default function PluginRunner() {
         setPromptInput("");
     }, [activeCommand, updateField]);
 
-    // ── Socket events ─────────────────────────────────────────
     useEffect(() => {
         const handlers = createRunnerHandlers({
             onLine: (text) => setLogs(prev => [...prev, { type: "line", text }]),
@@ -73,10 +73,13 @@ export default function PluginRunner() {
                 setPromptInput("");
             },
         });
-
+        handlersRef.current = handlers;
         subscribeToEvents(handlers);
-        return () => unsubscribeFromEvents(handlers);
-    }, [subscribeToEvents, unsubscribeFromEvents]);
+        return () => {
+            unsubscribeFromEvents(handlers);
+            handlersRef.current = null;
+        };
+    }, []);
 
     // ── Run ───────────────────────────────────────────────────
     const handleRun = useCallback(() => {

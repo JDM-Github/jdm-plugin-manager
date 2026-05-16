@@ -1,6 +1,6 @@
 {
   "name": "jdm-electron",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "JDM | Flask & Electron Template",
   "author": "JDM",
   "main": "main.js",

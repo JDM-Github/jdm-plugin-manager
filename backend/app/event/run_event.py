@@ -145,6 +145,7 @@ class RunEvent(JDMEvent):
 
     def on_run_answer(self, data):
         sid    = request.sid
+        print("SID ON RUN ANSWER:", sid)
         answer = data.get("answer", "")
         q = _prompt_queues.get(sid)
         if q:
