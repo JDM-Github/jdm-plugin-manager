@@ -113,21 +113,33 @@ export type ToastState = { message: string; type: "success" | "neg" } | null;
 // ─── PLUGIN RUNNER ────────────────────────────────────────────
 export type LogLine = { type: "line" | "done" | "error"; text: string; success?: boolean };
 export type FieldType = "text" | "select" | "boolean";
+
 export type Field = {
     key: string;
     label: string;
-    flag: string;
+    flag?: string;                 // optional — radio fields don't have a flag
     type: FieldType;
     placeholder?: string;
     options?: string[];
     default?: string | boolean;
     required?: boolean;
+    description?: string;
+
+    // ── Radio / switch_button support ──────────────────────────
+    radio?: boolean;               // true → rendered as a segmented radio button
+    class?: string;                // "switch_button" for radio rows; "blueprint" | "socket" | "manual" etc.
+    class_target?: string;         // the value emitted in --switch_button="<class_target>"
+
+    // ── Conditional disabling ───────────────────────────────────
+    disable_when_active?: string;  // hides all fields whose class === this value when this field is true
 };
+
 export type Command = {
     name: string;
     description: string;
     fields: Field[];
 };
+
 export type PluginSchema = {
     namespace: string;
     description: string;
