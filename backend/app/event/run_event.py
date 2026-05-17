@@ -24,11 +24,13 @@ def _strip(text: str) -> str:
     return text.strip()
 
 _SHIM = Path(__file__).parent / "shim/plugin_runner.mjs"
-_prompt_queues: dict[str, queue.Queue] = {}
-_tab_sids: dict[str, str] = {}
-_pending_prompts: dict[str, str] = {}
-_tab_logs: dict[str, list] = {}
-_tab_completed: dict[str, dict] = {}
+_prompt_queues: dict[str, queue.Queue] = {}  # tab_id -> queue (only while running)
+_tab_sids: dict[str, str] = {}              # tab_id -> current sid
+_pending_prompts: dict[str, str] = {}       # tab_id -> current prompt question
+_tab_logs: dict[str, list] = {}             # tab_id -> buffered lines (while running)
+_tab_completed: dict[str, dict] = {}        # tab_id -> {lines, code, success, killed} (after done)
+_tab_procs: dict[str, subprocess.Popen] = {} # tab_id -> running process
+_tab_killed: set[str] = set()               # tab_ids that were intentionally terminated
 
 
 def _find_node() -> str:
@@ -93,8 +95,9 @@ class RunEvent(JDMEvent):
         _tab_sids[tab_id] = sid
         _tab_logs[tab_id] = []
 
-        # Clear any previous completed state for this tab on new run
+        # Clear previous state for this tab on new run
         _tab_completed.pop(tab_id, None)
+        _tab_killed.discard(tab_id)
 
         def _run():
             try:
@@ -110,6 +113,7 @@ class RunEvent(JDMEvent):
                     cwd=cwd,
                     **kwargs,
                 )
+                _tab_procs[tab_id] = proc
 
                 for raw in proc.stdout:
                     line = _strip(raw)
@@ -149,37 +153,60 @@ class RunEvent(JDMEvent):
 
                 proc.wait()
 
-                # Save completed state BEFORE finally cleans up _tab_logs
+                was_killed = tab_id in _tab_killed
+                current_sid = _tab_sids.get(tab_id, sid)
+
+                # Save completed state before finally cleans up
                 _tab_completed[tab_id] = {
                     "lines": list(_tab_logs.get(tab_id, [])),
                     "code": proc.returncode,
-                    "success": proc.returncode == 0,
+                    "success": proc.returncode == 0 and not was_killed,
+                    "killed": was_killed,
                 }
 
-                current_sid = _tab_sids.get(tab_id, sid)
-                socketio.emit(
-                    "run_done",
-                    {"tab_id": tab_id, "code": proc.returncode, "success": proc.returncode == 0},
-                    to=current_sid,
-                )
+                if was_killed:
+                    socketio.emit("run_error", {
+                        "tab_id": tab_id,
+                        "text": "Process terminated by user.",
+                    }, to=current_sid)
+                else:
+                    socketio.emit("run_done", {
+                        "tab_id": tab_id,
+                        "code": proc.returncode,
+                        "success": proc.returncode == 0,
+                    }, to=current_sid)
 
             except Exception as exc:
-                # Save completed state on error too
                 _tab_completed[tab_id] = {
                     "lines": list(_tab_logs.get(tab_id, [])),
                     "code": 1,
                     "success": False,
+                    "killed": False,
                 }
                 current_sid = _tab_sids.get(tab_id, sid)
                 socketio.emit("run_error", {"tab_id": tab_id, "text": str(exc)}, to=current_sid)
             finally:
+                _tab_procs.pop(tab_id, None)
                 _prompt_queues.pop(tab_id, None)
                 _tab_sids.pop(tab_id, None)
                 _pending_prompts.pop(tab_id, None)
                 _tab_logs.pop(tab_id, None)
-                # _tab_completed intentionally NOT cleaned here — survives until client acks
+                _tab_killed.discard(tab_id)
+                # _tab_completed intentionally NOT cleaned here
 
         socketio.start_background_task(_run)
+
+    def on_run_kill(self, data):
+        """Terminate the running process for a tab."""
+        tab_id = data.get("tab_id", "")
+        proc = _tab_procs.get(tab_id)
+        if proc:
+            _tab_killed.add(tab_id)  # mark as intentional before terminating
+            proc.terminate()
+        # Unblock any pending q.get() so the thread exits cleanly
+        q = _prompt_queues.get(tab_id)
+        if q:
+            q.put("")
 
     def on_run_answer(self, data):
         tab_id = data.get("tab_id", "")
@@ -229,7 +256,6 @@ class RunEvent(JDMEvent):
                     }, to=sid)
 
             elif tab_id in _tab_completed:
-                # ── Finished while client was away ────────────
                 completed = _tab_completed[tab_id]
 
                 if completed["lines"]:
@@ -247,5 +273,5 @@ class RunEvent(JDMEvent):
                 else:
                     socketio.emit("run_error", {
                         "tab_id": tab_id,
-                        "text": f"Process exited with code {completed['code']}",
+                        "text": "Process terminated by user." if completed.get("killed") else f"Process exited with code {completed['code']}",
                     }, to=sid)

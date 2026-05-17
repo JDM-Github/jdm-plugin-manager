@@ -16,6 +16,7 @@ import Login from "./routes/Login";
 import { useAuth } from "./lib/context/auth_context";
 import Background from "./components/Background";
 import Manage from "./routes/Manage";
+import { useGlobalRunnerNotifications } from "./hooks/useGlobalRunnerNotifications";
 
 const ROUTE_NAMES: Record<string, string> = {
 	"/": "Overview",
@@ -30,7 +31,7 @@ const SIDEBAR_COLLAPSED = 56;
 function ProtectedApp() {
 	const location = useLocation();
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+	useGlobalRunnerNotifications();
 	useEffect(() => {
 		const routeName = ROUTE_NAMES[location.pathname] ?? "Page";
 		document.title = `${APP_NAME} | ${routeName}`;

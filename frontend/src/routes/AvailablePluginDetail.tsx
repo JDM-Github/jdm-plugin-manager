@@ -1,431 +1,3 @@
-// // ─── AvailablePluginDetail.tsx ────────────────────────────────
-// import { useState } from "react";
-// import { useLocation, useNavigate } from "react-router-dom";
-// import { motion, AnimatePresence } from "framer-motion";
-// import ReactMarkdown from "react-markdown";
-// import remarkGfm from "remark-gfm";
-// import type { AvailablePlugin } from "../lib/types";
-// import RequestHandler from "../lib/utilities/request_handler";
-// import Breadcrumb from "../components/Breadcrumb";
-
-// function OfficialBadge() {
-//     return (
-//         <span className="inline-flex items-center gap-[3px] px-1.5 py-[3px] rounded-full bg-accent/10 border border-accent/25 text-accent text-[8px] font-mono font-bold tracking-wider uppercase shrink-0">
-//             <svg width="7" height="7" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-//                 <path d="M8 0l1.8 5.4H16l-4.7 3.4 1.8 5.5L8 11l-5.1 3.3 1.8-5.5L0 5.4h6.2z" />
-//             </svg>
-//             Official
-//         </span>
-//     );
-// }
-
-// export default function AvailablePluginDetail() {
-//     const location = useLocation();
-//     const navigate = useNavigate();
-//     const plugin = location.state?.plugin as AvailablePlugin | undefined;
-
-//     const [current, setCurrent] = useState<AvailablePlugin | undefined>(plugin);
-//     const [pending, setPending] = useState(false);
-//     const [toast, setToast] = useState<{ message: string; type: "success" | "neg" } | null>(null);
-//     const [linkOpen, setLinkOpen] = useState(false);
-//     const [linkPath, setLinkPath] = useState("");
-//     const [linkError, setLinkError] = useState<string | null>(null);
-
-//     if (!current) {
-//         return (
-//             <div className="flex flex-col items-center justify-center h-64 gap-4">
-//                 <span className="text-[11px] font-mono text-text-faint">Plugin not found.</span>
-//                 <button
-//                     className="text-[10px] font-mono text-accent hover:opacity-75 transition-opacity"
-//                     onClick={() => navigate("/available")}
-//                 >
-//                     ← Back to Available
-//                 </button>
-//             </div>
-//         );
-//     }
-
-//     // ── Helpers ───────────────────────────────────────────────
-
-//     const showToast = (message: string, type: "success" | "neg") => {
-//         setToast({ message, type });
-//         setTimeout(() => setToast(null), 2500);
-//     };
-
-//     // ── Handlers ──────────────────────────────────────────────
-
-//     const handleInstall = async () => {
-//         setPending(true);
-//         try {
-//             const res = await RequestHandler.fetchData("POST", "plugin/install", { package: current.package });
-//             if (res.success) {
-//                 setCurrent(p => p ? { ...p, installed: true, installedVersion: res.data.version ?? null, linked: false, localPath: null } : p);
-//                 showToast(`${current.package} installed`, "success");
-//             } else {
-//                 showToast(res.message ?? "Failed to install", "neg");
-//             }
-//         } catch (err: any) {
-//             showToast(err.message ?? "Failed to install", "neg");
-//         } finally {
-//             setPending(false);
-//         }
-//     };
-
-//     const handleRemove = async () => {
-//         setPending(true);
-//         try {
-//             const res = await RequestHandler.fetchData("POST", `plugin/delete/${current.namespace}`);
-//             if (res.success) {
-//                 setCurrent(p => p ? { ...p, installed: false, installedVersion: null, linked: false, localPath: null } : p);
-//                 showToast(`${current.package} removed`, "neg");
-//             } else {
-//                 showToast(res.message ?? "Failed to remove", "neg");
-//             }
-//         } catch (err: any) {
-//             showToast(err.message ?? "Failed to remove", "neg");
-//         } finally {
-//             setPending(false);
-//         }
-//     };
-
-//     const handleLinkConfirm = async () => {
-//         if (!linkPath.trim()) { setLinkError("Local path is required"); return; }
-//         setLinkOpen(false);
-//         setPending(true);
-//         try {
-//             const res = await RequestHandler.fetchData("POST", "plugin/link", {
-//                 package: current.package,
-//                 localPath: linkPath.trim(),
-//             });
-//             if (res.success) {
-//                 setCurrent(p => p ? { ...p, installed: true, installedVersion: res.data.version ?? null, linked: true, localPath: linkPath.trim() } : p);
-//                 showToast(`${current.package} linked`, "success");
-//             } else {
-//                 showToast(res.message ?? "Failed to link", "neg");
-//             }
-//         } catch (err: any) {
-//             showToast(err.message ?? "Failed to link", "neg");
-//         } finally {
-//             setPending(false);
-//             setLinkPath("");
-//         }
-//     };
-
-//     // ── Derived ───────────────────────────────────────────────
-
-//     const initials = current.namespace.slice(0, 2).toUpperCase();
-//     const versionLabel = current.installed && current.installedVersion
-//         ? current.installedVersion
-//         : current.npmVersion ?? null;
-
-//     // ── Render ────────────────────────────────────────────────
-
-//     return (
-//         <>
-//             <motion.div
-//                 className="flex flex-col gap-4 max-w-full h-[calc(100vh-150px)]"
-//                 initial={{ opacity: 0, y: 8 }}
-//                 animate={{ opacity: 1, y: 0 }}
-//                 transition={{ duration: 0.2, ease: "easeOut" }}
-//             >
-//                 <Breadcrumb
-//                     namespace={current.namespace}
-//                     commandCount={current.commands.length}
-//                     activeCommand={null}
-//                     onBack={() => navigate("/available")}
-//                     textBreadcrumb={"Available"}
-//                 />
-
-//                 {/* ── Two-column layout ── */}
-//                 <div className="flex gap-4 items-start flex-col lg:flex-row h-full min-h-0">
-
-//                     {/* ══ LEFT — main content (scrollable) ══════════════════════════════ */}
-//                     <div className="flex flex-col gap-4 flex-1 min-w-0 h-full overflow-y-auto pr-1 custom-scroll">
-
-//                         {/* ── Identity card ── */}
-//                         <div className="bg-surface border border-border rounded-[14px] overflow-hidden shrink-0">
-//                             <div className="h-[2px] w-full bg-accent opacity-50" />
-//                             <div className="p-5 flex items-center gap-4">
-//                                 {/* Icon */}
-//                                 <div className="w-[54px] h-[54px] rounded-[13px] bg-accent-dim border border-accent-border flex items-center justify-center shrink-0 glow-accent">
-//                                     <span className="font-display text-[15px] font-black text-accent tracking-[0.04em]">
-//                                         {initials}
-//                                     </span>
-//                                 </div>
-
-//                                 {/* Name block */}
-//                                 <div className="flex flex-col gap-1 min-w-0 flex-1">
-//                                     <div className="flex items-center gap-2 flex-wrap">
-//                                         <span className="text-[15px] font-bold font-mono text-text leading-tight">
-//                                             {current.package}
-//                                         </span>
-//                                         {current.official &&
-//                                             <OfficialBadge />
-//                                         }
-//                                         {current.linked && (
-//                                             <span className="text-[8px] font-mono font-bold text-accent bg-accent-dim border border-accent-border px-1.5 py-[3px] rounded-[4px] tracking-[0.1em]">
-//                                                 LINKED
-//                                             </span>
-//                                         )}
-//                                     </div>
-//                                     <p className="text-[11px] font-mono text-text-muted leading-relaxed">
-//                                         {current.description}
-//                                     </p>
-//                                     {/* Meta row */}
-//                                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
-//                                         <span className="text-[9px] font-mono text-text-faint">{current.namespace}</span>
-//                                         {versionLabel && (
-//                                             <>
-//                                                 <span className="text-text-faint/30 text-[9px]">·</span>
-//                                                 <span className="text-[9px] font-mono text-accent/70">v{versionLabel}</span>
-//                                             </>
-//                                         )}
-//                                         {current.weeklyDownloads != null && (
-//                                             <>
-//                                                 <span className="text-text-faint/30 text-[9px]">·</span>
-//                                                 <span className="text-[9px] font-mono text-text-faint">
-//                                                     {current.weeklyDownloads.toLocaleString()} downloads/wk
-//                                                 </span>
-//                                             </>
-//                                         )}
-//                                     </div>
-//                                 </div>
-//                             </div>
-
-//                             {/* Commands strip */}
-//                             {current.commands.length > 0 && (
-//                                 <div className="border-t border-border px-5 py-3 flex items-center gap-2 flex-wrap bg-bg/40">
-//                                     <span className="text-[9px] font-mono text-text-faint tracking-[0.1em] uppercase shrink-0">
-//                                         Commands
-//                                     </span>
-//                                     <span className="text-text-faint/20 text-[9px] shrink-0">·</span>
-//                                     {current.commands.map(cmd => (
-//                                         <code
-//                                             key={cmd}
-//                                             className="text-[9px] font-mono text-text-muted bg-surface border border-border px-1.5 py-[2px] rounded-[3px]"
-//                                         >
-//                                             jdm {current.namespace} {cmd}
-//                                         </code>
-//                                     ))}
-//                                 </div>
-//                             )}
-
-//                             {/* Linked path strip */}
-//                             {current.linked && current.localPath && (
-//                                 <div className="border-t border-border px-5 py-3 flex items-center gap-2 bg-accent/5">
-//                                     <span className="text-[9px] font-mono text-text-faint tracking-[0.06em] uppercase shrink-0">
-//                                         Local path
-//                                     </span>
-//                                     <span className="text-text-faint/20 text-[9px] shrink-0">·</span>
-//                                     <span className="text-[10px] font-mono text-accent/70 truncate">
-//                                         {current.localPath}
-//                                     </span>
-//                                 </div>
-//                             )}
-//                         </div>
-
-//                         {/* ── Readme ── */}
-//                         <div className="bg-surface border border-border rounded-[14px] overflow-hidden shrink-0">
-//                             <div className="px-5 py-3 border-b border-border flex items-center gap-2">
-//                                 <span className="text-[9px] font-mono text-text-faint tracking-[0.14em] uppercase">
-//                                     Readme
-//                                 </span>
-//                             </div>
-//                             <div className="p-5">
-//                                 {current.readme ? (
-//                                     <div className="readme-prose">
-//                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-//                                             {current.readme}
-//                                         </ReactMarkdown>
-//                                     </div>
-//                                 ) : (
-//                                     <span className="text-[11px] font-mono text-text-faint italic">
-//                                         No readme available.
-//                                     </span>
-//                                 )}
-//                             </div>
-//                         </div>
-//                     </div>
-
-//                     {/* ══ RIGHT — sticky sidebar ═══════════════════════════ */}
-//                     <div className="flex flex-col gap-3 w-full lg:w-[220px] shrink-0 lg:sticky lg:top-4">
-
-//                         {/* Action card */}
-//                         <div className="bg-surface border border-border rounded-[14px] p-4 flex flex-col gap-3">
-//                             {current.installed ? (
-//                                 <>
-//                                     <div className="flex items-center gap-1.5">
-//                                         <span className="w-1.5 h-1.5 rounded-full bg-pos shrink-0" />
-//                                         <span className="text-[10px] font-mono text-pos">
-//                                             {current.linked ? "Linked locally" : "Installed"}
-//                                         </span>
-//                                     </div>
-//                                     <button
-//                                         className="w-full py-2 rounded-[8px] border border-border text-text-faint text-[11px] font-mono hover:border-neg hover:text-neg transition-colors active:scale-[0.98] disabled:opacity-40"
-//                                         onClick={handleRemove}
-//                                         disabled={pending}
-//                                     >
-//                                         {pending ? "···" : "Remove"}
-//                                     </button>
-//                                 </>
-//                             ) : (
-//                                 <>
-//                                     <button
-//                                         className="w-full py-2 rounded-[8px] bg-accent text-bg text-[11px] font-mono font-bold tracking-[0.04em] hover:opacity-85 active:scale-[0.98] transition-all disabled:opacity-40"
-//                                         onClick={handleInstall}
-//                                         disabled={pending}
-//                                     >
-//                                         {pending ? "···" : "+ Install"}
-//                                     </button>
-//                                     <button
-//                                         className="w-full py-2 rounded-[8px] border border-border text-text-faint text-[11px] font-mono hover:border-accent/40 hover:text-accent transition-colors active:scale-[0.98] disabled:opacity-40"
-//                                         onClick={() => { setLinkError(null); setLinkPath(""); setLinkOpen(true); }}
-//                                         disabled={pending}
-//                                     >
-//                                         ⇄ Link local
-//                                     </button>
-//                                 </>
-//                             )}
-//                         </div>
-
-//                         {/* Stats card */}
-//                         <div className="bg-surface border border-border rounded-[14px] overflow-hidden">
-//                             <div className="px-4 py-3 border-b border-border">
-//                                 <span className="text-[9px] font-mono text-text-faint tracking-[0.12em] uppercase">Info</span>
-//                             </div>
-//                             <div className="divide-y divide-border">
-//                                 <StatRow label="Package" value={current.package} mono />
-//                                 <StatRow label="Namespace" value={current.namespace} mono />
-//                                 <StatRow
-//                                     label="npm version"
-//                                     value={current.npmVersion ? `v${current.npmVersion}` : "—"}
-//                                     mono
-//                                 />
-//                                 <StatRow
-//                                     label="Installed"
-//                                     value={current.installedVersion ? `v${current.installedVersion}` : "—"}
-//                                     mono
-//                                 />
-//                                 <StatRow
-//                                     label="Downloads/wk"
-//                                     value={current.weeklyDownloads != null
-//                                         ? current.weeklyDownloads.toLocaleString()
-//                                         : "—"
-//                                     }
-//                                 />
-//                                 <StatRow
-//                                     label="Status"
-//                                     value={
-//                                         !current.installed ? "Not installed"
-//                                             : current.linked ? "Linked"
-//                                                 : "Installed"
-//                                     }
-//                                     accent={current.installed}
-//                                 />
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </motion.div>
-
-//             {/* ── Link modal ── */}
-//             <AnimatePresence>
-//                 {linkOpen && (
-//                     <motion.div
-//                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-//                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-//                         onClick={() => setLinkOpen(false)}
-//                     >
-//                         <motion.div
-//                             className="bg-surface border border-border rounded-[14px] p-5 w-full max-w-sm flex flex-col gap-4 mx-4"
-//                             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-//                             onClick={e => e.stopPropagation()}
-//                         >
-//                             <div className="flex flex-col gap-1">
-//                                 <h2 className="text-[13px] font-bold font-display text-accent tracking-[0.04em]">
-//                                     Link local plugin
-//                                 </h2>
-//                                 <p className="text-[11px] font-mono text-text-muted">{current.package}</p>
-//                             </div>
-//                             <div className="flex flex-col gap-1.5">
-//                                 <label className="text-[10px] font-mono text-text-faint">Local path</label>
-//                                 <input
-//                                     autoFocus
-//                                     className="w-full bg-bg border border-border rounded-[7px] px-3 py-2 text-[11px] font-mono text-text placeholder:text-text-faint focus:outline-none focus:border-accent/50 transition-colors"
-//                                     placeholder="C:\projects\my-plugin"
-//                                     value={linkPath}
-//                                     onChange={e => { setLinkPath(e.target.value); setLinkError(null); }}
-//                                     onKeyDown={e => e.key === "Enter" && handleLinkConfirm()}
-//                                 />
-//                                 {linkError && (
-//                                     <span className="text-[10px] font-mono text-red-400">{linkError}</span>
-//                                 )}
-//                             </div>
-//                             <div className="flex gap-2 justify-end">
-//                                 <button
-//                                     className="px-3 py-1.5 rounded-[7px] border border-border text-text-faint text-[10px] font-mono hover:text-text transition-colors"
-//                                     onClick={() => setLinkOpen(false)}
-//                                 >
-//                                     Cancel
-//                                 </button>
-//                                 <button
-//                                     className="px-3 py-1.5 rounded-[7px] bg-accent text-bg text-[10px] font-mono font-bold hover:opacity-85 transition-opacity"
-//                                     onClick={handleLinkConfirm}
-//                                 >
-//                                     Link
-//                                 </button>
-//                             </div>
-//                         </motion.div>
-//                     </motion.div>
-//                 )}
-//             </AnimatePresence>
-
-//             {/* ── Toast ── */}
-//             <AnimatePresence>
-//                 {toast && (
-//                     <motion.div
-//                         className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-[8px] border text-[11px] font-mono whitespace-nowrap
-//                             ${toast.type === "success"
-//                                 ? "bg-surface border-pos/30 text-pos"
-//                                 : "bg-surface border-neg/30 text-neg"
-//                             }`}
-//                         initial={{ opacity: 0, y: 8 }}
-//                         animate={{ opacity: 1, y: 0 }}
-//                         exit={{ opacity: 0, y: 8 }}
-//                     >
-//                         {toast.message}
-//                     </motion.div>
-//                 )}
-//             </AnimatePresence>
-//         </>
-//     );
-// }
-
-// // ── StatRow ───────────────────────────────────────────────────
-
-// function StatRow({
-//     label,
-//     value,
-//     mono = false,
-//     accent = false,
-// }: {
-//     label: string;
-//     value: string;
-//     mono?: boolean;
-//     accent?: boolean;
-// }) {
-//     return (
-//         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-//             <span className="text-[9px] font-mono text-text-faint tracking-[0.06em] uppercase shrink-0">
-//                 {label}
-//             </span>
-//             <span className={`text-[10px] truncate text-right ${mono ? "font-mono" : ""} ${accent ? "text-pos" : "text-text-muted"}`}>
-//                 {value}
-//             </span>
-//         </div>
-//     );
-// }
-// ─── AvailablePluginDetail.tsx ────────────────────────────────
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -474,6 +46,25 @@ function relativeTime(iso: string): string {
     } catch { return ""; }
 }
 
+/**
+ * Fix mojibake: UTF-8 box-drawing characters that were decoded as Latin-1.
+ * Re-encodes each char as a Latin-1 byte, then decodes the byte array as UTF-8.
+ * Falls back to the original string if decoding throws.
+ */
+function fixMojibake(str: string): string {
+    try {
+        const bytes = new Uint8Array(str.length);
+        for (let i = 0; i < str.length; i++) {
+            bytes[i] = str.charCodeAt(i) & 0xff;
+        }
+        // If the result is valid UTF-8 and differs, use it
+        const fixed = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        return fixed;
+    } catch {
+        return str;
+    }
+}
+
 // ─────────────────────────────────────────────────────────────
 //  Sub-components
 // ─────────────────────────────────────────────────────────────
@@ -504,7 +95,7 @@ function StatRow({ label, value, mono = false, accent = false }: {
     return (
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
             <span className="text-[9px] font-mono text-text-faint tracking-[0.06em] uppercase shrink-0">{label}</span>
-            <span className={`text-[10px] truncate text-right ${mono ? "font-mono" : ""} ${accent ? "text-pos" : "text-text-muted"}`}>
+            <span className={`text-[10px] truncate text-right max-w-[120px] ${mono ? "font-mono" : ""} ${accent ? "text-pos" : "text-text-muted"}`}>
                 {value}
             </span>
         </div>
@@ -591,6 +182,9 @@ export default function AvailablePluginDetail() {
         ? versions.find(v => v.version === selectedVersion) ?? null
         : null;
 
+    // Fix README encoding once
+    const readmeContent = current.readme ? fixMojibake(current.readme) : null;
+
     const handleInstall = async (versionOverride?: string) => {
         setPending(true);
         const pkg = versionOverride
@@ -665,8 +259,13 @@ export default function AvailablePluginDetail() {
 
     return (
         <>
+            {/*
+                Root wrapper:
+                - w-full + overflow-hidden prevents horizontal blowout
+                - flex-col + h-[calc(100vh-150px)] establishes the scroll boundary
+            */}
             <motion.div
-                className="flex flex-col gap-4 max-w-full h-[calc(100vh-150px)]"
+                className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100vh-150px)]"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
@@ -679,11 +278,15 @@ export default function AvailablePluginDetail() {
                     textBreadcrumb={"Available"}
                 />
 
-                {/* ── Two-column layout ── */}
-                <div className="flex gap-4 items-start flex-col lg:flex-row h-full min-h-0">
+                {/*
+                    Two-column layout:
+                    - flex-1 + min-h-0 lets it fill remaining height without overflowing
+                    - NO overflow-hidden here — that was clipping the right sidebar off-screen
+                */}
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 flex-1 min-h-0">
 
-                    {/* ══ LEFT — main content (scrollable) ══════════════════ */}
-                    <div className="flex flex-col gap-4 flex-1 min-w-0 h-full overflow-y-auto pr-1 custom-scroll">
+                    {/* ══ LEFT — main content (independently scrollable) ══ */}
+                    <div className="min-w-0 h-full overflow-y-auto overflow-x-hidden custom-scroll pb-4 flex flex-col gap-4">
 
                         {/* ── Identity card ── */}
                         <div className="bg-surface border border-border rounded-[14px] overflow-hidden shrink-0">
@@ -877,9 +480,9 @@ export default function AvailablePluginDetail() {
                                 <span className="text-[9px] font-mono text-text-faint tracking-[0.14em] uppercase">Readme</span>
                             </div>
                             <div className="p-5">
-                                {current.readme ? (
+                                {readmeContent ? (
                                     <div className="readme-prose">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{current.readme}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{readmeContent}</ReactMarkdown>
                                     </div>
                                 ) : (
                                     <span className="text-[11px] font-mono text-text-faint italic">No readme available.</span>
@@ -888,8 +491,12 @@ export default function AvailablePluginDetail() {
                         </div>
                     </div>
 
-                    {/* ══ RIGHT — sticky sidebar ═══════════════════════════ */}
-                    <div className="flex flex-col gap-3 w-full lg:w-[220px] shrink-0 lg:sticky lg:top-4">
+                    {/* ══ RIGHT — sticky sidebar ═══════════════════════════
+                        - shrink-0 + w-[220px]: fixed width that NEVER shrinks or grows
+                        - On mobile (flex-col) it naturally goes full width via the block context
+                        - lg:sticky keeps it in view while left panel scrolls
+                    */}
+                    <div className="flex flex-col gap-3 lg:sticky lg:top-4">
 
                         {/* Action card */}
                         <div className="bg-surface border border-border rounded-[14px] p-4 flex flex-col gap-3">

@@ -8,6 +8,7 @@ import { MOTION_CONTAINER } from "../lib/constant";
 import type { Plugin, PluginCommand, PluginStatus } from "../lib/types";
 import RequestHandler from "../lib/utilities/request_handler";
 import { clearCache } from "../hooks/usePluginCache";
+import { useRunningNamespaces } from "../hooks/useRunningNamespaces";
 
 type Filter = "all" | "update-available";
 type ModalState = { plugin: string; action: "remove" | "update" } | null;
@@ -24,25 +25,17 @@ interface RawPlugin {
     installedAt: string;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Mapping
-// ─────────────────────────────────────────────────────────────
-
 function compareVersions(version1: string, version2: string): number {
     const v1 = version1.replace(/^v/, '');
     const v2 = version2.replace(/^v/, '');
-
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
-
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
         const num1 = parts1[i] || 0;
         const num2 = parts2[i] || 0;
-
         if (num1 > num2) return 1;
         if (num1 < num2) return -1;
     }
-
     return 0;
 }
 
@@ -50,13 +43,9 @@ function toPlugin(raw: RawPlugin): Plugin {
     let status: PluginStatus = "up-to-date";
     if (raw.linked) {
         const versionComparison = compareVersions(raw.version, raw.latestVersion);
-        if (versionComparison > 0) {
-            status = "higher-version";
-        } else if (versionComparison < 0) {
-            status = "update-available";
-        } else {
-            status = "up-to-date";
-        }
+        if (versionComparison > 0) status = "higher-version";
+        else if (versionComparison < 0) status = "update-available";
+        else status = "up-to-date";
     }
     return {
         name: raw.package,
@@ -68,23 +57,15 @@ function toPlugin(raw: RawPlugin): Plugin {
         localPath: raw.localPath,
         installedAt: raw.installedAt,
         latestVersion: raw.latestVersion,
-        status
+        status,
     };
 }
-
-// ─────────────────────────────────────────────────────────────
-//  API calls
-// ─────────────────────────────────────────────────────────────
 
 async function fetchInstalled(): Promise<RawPlugin[]> {
     const res = await RequestHandler.fetchData("GET", "plugin/get-all");
     if (!res.success) throw new Error(res.message ?? "Failed to load plugins");
     return Object.values(res.data.plugins) as RawPlugin[];
 }
-
-// ─────────────────────────────────────────────────────────────
-//  Component
-// ─────────────────────────────────────────────────────────────
 
 export default function Plugins() {
     const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -94,7 +75,9 @@ export default function Plugins() {
     const [filter, setFilter] = useState<Filter>("all");
     const [pending, setPending] = useState<Set<string>>(new Set());
 
-    // ── Load ──────────────────────────────────────────────────
+    // Global socket-driven running state
+    const runningNamespaces = useRunningNamespaces();
+
     const loadPlugins = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -110,17 +93,12 @@ export default function Plugins() {
 
     useEffect(() => { loadPlugins(); }, [loadPlugins]);
 
-    // ── Derived ───────────────────────────────────────────────
     const updateCount = plugins.filter(p => p.status === "update-available").length;
-    const filtered = filter === "all"
-        ? plugins
-        : plugins.filter(p => p.status === filter);
+    const filtered = filter === "all" ? plugins : plugins.filter(p => p.status === filter);
 
-    // ── Pending helpers ───────────────────────────────────────
     const addPending = (ns: string) => setPending(p => new Set(p).add(ns));
     const removePending = (ns: string) => setPending(p => { const n = new Set(p); n.delete(ns); return n; });
 
-    // ── Handlers ──────────────────────────────────────────────
     const handleRemove = (name: string) => setModal({ plugin: name, action: "remove" });
     const handleUpdate = (name: string) => setModal({ plugin: name, action: "update" });
 
@@ -186,12 +164,11 @@ export default function Plugins() {
         }
     };
 
-    // ── Render ────────────────────────────────────────────────
     return (
         <>
             <div className="flex flex-col gap-3">
 
-                {/* ── Heading ── */}
+                {/* Heading */}
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col gap-1">
                         <h1 className="font-display text-[16px] font-bold text-accent glow-accent-text tracking-[0.06em]">
@@ -216,7 +193,7 @@ export default function Plugins() {
                     )}
                 </div>
 
-                {/* ── Error banner ── */}
+                {/* Error banner */}
                 <AnimatePresence>
                     {error && (
                         <motion.div
@@ -236,7 +213,7 @@ export default function Plugins() {
                     )}
                 </AnimatePresence>
 
-                {/* ── Loading skeleton ── */}
+                {/* Loading skeleton */}
                 {loading ? (
                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                         {[...Array(3)].map((_, i) => (
@@ -248,7 +225,6 @@ export default function Plugins() {
                     </div>
                 ) : (
                     <>
-                        {/* ── Filter tabs ── */}
                         <FilterTabs
                             filter={filter}
                             totalCount={plugins.length}
@@ -256,7 +232,6 @@ export default function Plugins() {
                             onChange={setFilter}
                         />
 
-                        {/* ── Plugin grid ── */}
                         {filtered.length === 0 ? (
                             <div className="flex items-center justify-center py-20 bg-surface border border-border rounded-[10px]">
                                 <p className="text-[12px] font-mono text-text-faint">
@@ -278,6 +253,7 @@ export default function Plugins() {
                                         key={plugin.namespace}
                                         plugin={plugin}
                                         pending={pending.has(plugin.namespace)}
+                                        running={runningNamespaces.has(plugin.namespace)}
                                         onRemove={handleRemove}
                                         onUpdate={handleUpdate}
                                     />
@@ -288,7 +264,6 @@ export default function Plugins() {
                 )}
             </div>
 
-            {/* ── Confirm modal ── */}
             <AnimatePresence>
                 {modal && (
                     <ConfirmModal

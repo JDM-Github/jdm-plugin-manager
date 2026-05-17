@@ -254,29 +254,29 @@ export default function ConfigPanel({
                                     {previewText}
                                 </code>
                             </div>
-                            <button
-                                className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-[8px] text-[11px] font-mono font-semibold tracking-[0.04em] transition-all ${running
-                                    ? "bg-accent/20 border border-accent/30 text-accent cursor-wait"
-                                    : done && exitOk
-                                        ? "bg-pos/10 border border-pos/30 text-pos hover:opacity-80 active:scale-[0.97]"
-                                        : done && !exitOk
-                                            ? "bg-neg/10 border border-neg/30 text-neg hover:opacity-80 active:scale-[0.97]"
-                                            : "bg-accent text-bg hover:opacity-85 active:scale-[0.97]"
-                                    }`}
-                                onClick={onRun}
-                                disabled={running}
-                            >
-                                {running ? (
-                                    <>
-                                        <span className="w-3 h-3 rounded-full border border-accent/40 border-t-accent animate-spin shrink-0" />
-                                        Running
-                                    </>
-                                ) : done ? (
-                                    exitOk ? "✔ Done" : "✖ Failed"
-                                ) : (
-                                    "▶ Run"
-                                )}
-                            </button>
+                                <button
+                                    className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-[8px] text-[11px] font-mono font-semibold tracking-[0.04em] transition-all ${running
+                                            ? "bg-accent/10 border border-accent/20 text-accent cursor-not-allowed"
+                                            : done && exitOk
+                                                ? "bg-pos/10 border border-pos/30 text-pos hover:opacity-80 active:scale-[0.97] cursor-pointer"
+                                                : done && !exitOk
+                                                    ? "bg-neg/10 border border-neg/30 text-neg hover:opacity-80 active:scale-[0.97] cursor-pointer"
+                                                    : "bg-accent text-bg hover:opacity-85 active:scale-[0.97] cursor-pointer"
+                                        }`}
+                                    onClick={!running ? onRun : undefined}
+                                    disabled={running}
+                                >
+                                    {running ? (
+                                        <>
+                                            <span className="w-3 h-3 rounded-full border border-accent/40 border-t-accent animate-spin shrink-0" />
+                                            Running...
+                                        </>
+                                    ) : done ? (
+                                        exitOk ? "✔ Done  ·  ▶ Run Again" : "✖ Failed  ·  ▶ Retry"
+                                    ) : (
+                                        "▶ Run"
+                                    )}
+                                </button>
                         </div>
                     </motion.div>
                 )}

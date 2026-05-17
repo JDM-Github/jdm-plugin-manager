@@ -351,10 +351,12 @@ body {
 
 /* ── Readme prose ── */
 .readme-prose {
-  font-size: 13px;               /* was 12px */
-  line-height: 1.75;             /* slightly more breathing room */
+  font-size: 13px;
+  line-height: 1.75;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
+  width: 100%;
+  overflow: hidden;
 }
 
 .readme-prose h1 {

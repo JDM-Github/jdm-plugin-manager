@@ -1,6 +1,6 @@
 // ─── PluginRunner.tsx ─────────────────────────────────────────
 import { useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import type { Command, TabState } from "../lib/types";
 import { useCommandForm } from "../hooks/useCommandForm";
@@ -10,7 +10,6 @@ import { useRunnerSocket } from "../socket/hooks/useRunnerSocket";
 import { createRunnerHandlers } from "../socket/handlers/runnerHandlers";
 import { SocketEvents } from "../socket/events";
 import SocketHandler from "../lib/utilities/socket_handler";
-
 import WorkingDirectoryBar from "../components/runner/WorkingDirectoryBar";
 import ConfigPanel from "../components/runner/ConfigPanel";
 import TerminalPanel from "../components/runner/TerminalPanel";
@@ -19,8 +18,11 @@ import CommandPanel from "../components/runner/CommandPanel";
 import TabBar from "../components/runner/TabBar";
 import { createTab } from "../lib/utils";
 import { usePersistedStore } from "../hooks/usePresistedStore";
+import { saveRunningTab } from "../lib/pendingNotifications";
+import { markRunning } from "../hooks/useRunningNamespaces";
 
 const PANEL_H = "h-[calc(100vh-280px)]";
+const TERMINAL_H = "h-[calc(100vh-190px)]";
 
 // ─────────────────────────────────────────────────────────────
 export default function PluginRunner() {
@@ -30,11 +32,20 @@ export default function PluginRunner() {
     const { schema, loading: schemaLoading, error: schemaError } = usePluginSchema();
     const { runCommand, sendAnswer, subscribeToEvents, unsubscribeFromEvents, emit } = useRunnerSocket();
     const { store, setStore } = usePersistedStore(namespace!);
+    const location = useLocation();
 
-    // ── Derive from store (safe even if null) ─────────────────
     const tabs = store?.tabs ?? [];
     const activeTabId = store?.activeTabId ?? "";
     const activeTab = tabs.find(t => t.id === activeTabId) ?? tabs[0] ?? null;
+
+    useEffect(() => {
+        const tabId = (location.state as { tabId?: string } | null)?.tabId;
+        if (!tabId || !store) return;
+        const exists = store.tabs.some(t => t.id === tabId);
+        if (exists) {
+            setStore(prev => ({ ...prev, activeTabId: tabId }));
+        }
+    }, [location.state, store?.tabs.map(t => t.id).join(",")]);
 
     const updateTab = useCallback((
         id: string,
@@ -99,12 +110,17 @@ export default function PluginRunner() {
         });
     }, [activeTabId, updateTab]);
 
+    const handleKill = useCallback(() => {
+        emit(SocketEvents.RUN_KILL, { tab_id: activeTabId });
+    }, [activeTabId, emit]);
+
     const handleUpdateField = useCallback((key: string, value: string | boolean) => {
         updateTab(activeTabId, prev => ({
             fieldValues: { ...prev.fieldValues, [key]: value },
         }));
     }, [activeTabId, updateTab]);
 
+    // ── Socket events ─────────────────────────────────────────
     useEffect(() => {
         const handlers = createRunnerHandlers({
             onLine: (tabId, text) =>
@@ -112,6 +128,8 @@ export default function PluginRunner() {
                     logs: [...prev.logs, { type: "line", text }],
                 })),
 
+            // Notifications are handled globally in useGlobalRunnerNotifications
+            // Just update state here
             onDone: (tabId, success) =>
                 updateTab(tabId, prev => ({
                     logs: [...prev.logs, { type: "done", text: "", success }],
@@ -138,15 +156,16 @@ export default function PluginRunner() {
         return () => unsubscribeFromEvents(handlers);
     }, [updateTab, subscribeToEvents, unsubscribeFromEvents]);
 
+    // ── Reconnect + replay ────────────────────────────────────
     useEffect(() => {
-        SocketHandler.on(SocketEvents.RUN_REPLAY, (data: { tab_id: string; lines: { type: string; text: string }[] }) => {
+        const onReplay = (data: { tab_id: string; lines: { type: string; text: string }[] }) => {
             updateTab(data.tab_id, () => ({
                 logs: data.lines.map(l => ({
                     type: "line" as const,
                     text: l.type === "prompt" ? `  ? ${l.text}` : l.type === "answer" ? `  ↳ ${l.text}` : l.text,
                 })),
             }));
-        });
+        };
 
         const onResume = (data: { tab_id: string }) => {
             updateTab(data.tab_id, prev => ({
@@ -154,27 +173,28 @@ export default function PluginRunner() {
                 done: false,
                 logs: [
                     ...prev.logs,
-                    { type: "line", text: "⟳ Reconnected — command still running..." }
+                    { type: "line", text: "⟳ Reconnected — command still running..." },
                 ],
             }));
         };
 
         const sendReconnect = () => {
-            // Read tab ids directly from store ref, not closure
             setStore(prev => {
                 if (!prev) return prev;
                 const tabIds = prev.tabs.map(t => t.id);
                 emit(SocketEvents.RECONNECT_TABS, { tab_ids: tabIds });
-                return prev; // no state change, just reading
+                return prev;
             });
         };
 
-        SocketHandler.on("connect", sendReconnect);
+        SocketHandler.on(SocketEvents.RUN_REPLAY, onReplay);
         SocketHandler.on(SocketEvents.RUN_RESUME, onResume);
+        SocketHandler.on("connect", sendReconnect);
 
         return () => {
-            SocketHandler.off("connect", sendReconnect);
+            SocketHandler.off(SocketEvents.RUN_REPLAY, onReplay);
             SocketHandler.off(SocketEvents.RUN_RESUME, onResume);
+            SocketHandler.off("connect", sendReconnect);
         };
     }, []);
 
@@ -182,7 +202,6 @@ export default function PluginRunner() {
     useEffect(() => {
         if (!store || didReconnect.current) return;
         didReconnect.current = true;
-
         const tabIds = store.tabs.map(t => t.id);
         emit(SocketEvents.RECONNECT_TABS, { tab_ids: tabIds });
     }, [store]);
@@ -191,7 +210,6 @@ export default function PluginRunner() {
         didReconnect.current = false;
     }, [namespace]);
 
-    // ── Run ───────────────────────────────────────────────────
     const handleRun = useCallback(() => {
         if (!activeTab?.activeCommand || !namespace || activeTab.running) return;
 
@@ -210,6 +228,11 @@ export default function PluginRunner() {
             promptInput: "",
         });
 
+        saveRunningTab(activeTabId, {
+            label: activeTab.label,
+            namespace: namespace,
+        });
+        markRunning(namespace);
         emit(SocketEvents.RUN_CLEAR, { tab_id: activeTabId });
         runCommand({
             tabId: activeTabId,
@@ -218,8 +241,9 @@ export default function PluginRunner() {
             args: buildArgs(),
             cwd: activeTab.workDir || undefined,
         });
-    }, [activeTab, activeTabId, namespace, validate, buildArgs, updateTab, runCommand]);
+    }, [activeTab, activeTabId, namespace, validate, buildArgs, updateTab, runCommand, emit]);
 
+    // ── Prompt answer ─────────────────────────────────────────
     const handlePromptSubmit = useCallback(() => {
         if (!activeTab || activeTab.prompt === null) return;
         const { prompt, promptInput } = activeTab;
@@ -235,6 +259,7 @@ export default function PluginRunner() {
         sendAnswer(activeTabId, promptInput);
     }, [activeTab, activeTabId, updateTab, sendAnswer]);
 
+    // ── Early returns (after all hooks) ──────────────────────
     if (!store) return (
         <div className="flex items-center justify-center h-64">
             <span className="text-[11px] font-mono text-text-faint animate-pulse">
@@ -275,44 +300,51 @@ export default function PluginRunner() {
                 textBreadcrumb="Installed"
             />
 
-            <TabBar
-                tabs={tabs.map(t => ({ id: t.id, label: t.label, running: t.running }))}
-                activeTabId={activeTabId}
-                onSelect={id => setStore(prev => ({ ...prev, activeTabId: id }))}
-                onAdd={addTab}
-                onClose={closeTab}
-            />
+            <div className="grid grid-cols-2 gap-1.5">
 
-            <WorkingDirectoryBar
-                workDir={activeTab?.workDir ?? ""}
-                setWorkDir={path => updateTab(activeTabId, { workDir: path })}
-                loading={pathLoading}
-                onFetchCwd={fetchCwd}
-                onBrowseFolder={browseFolder}
-            />
+                {/* Left panel */}
+                <div className="flex flex-col gap-1.5">
+                    <TabBar
+                        tabs={tabs.map(t => ({ id: t.id, label: t.label, running: t.running, done: t.done, exitOk: t.exitOk }))}
+                        activeTabId={activeTabId}
+                        onSelect={id => setStore(prev => ({ ...prev, activeTabId: id }))}
+                        onAdd={addTab}
+                        onClose={closeTab}
+                        onRename={(id, label) => updateTab(id, { label })}
+                    />
 
-            <div className="grid grid-cols-[200px_300px_1fr] gap-1.5">
+                    <WorkingDirectoryBar
+                        workDir={activeTab?.workDir ?? ""}
+                        setWorkDir={path => updateTab(activeTabId, { workDir: path })}
+                        loading={pathLoading}
+                        onFetchCwd={fetchCwd}
+                        onBrowseFolder={browseFolder}
+                    />
 
-                <CommandPanel
-                    schema={schema}
-                    activeCommand={activeTab?.activeCommand ?? null}
-                    panelHeight={PANEL_H}
-                    running={activeTab?.running ?? false}
-                    onSelect={handleSelectCommand}
-                />
+                    <div className="grid grid-cols-[200px_1fr] gap-1.5">
+                        <CommandPanel
+                            schema={schema}
+                            activeCommand={activeTab?.activeCommand ?? null}
+                            panelHeight={PANEL_H}
+                            running={activeTab?.running ?? false}
+                            onSelect={handleSelectCommand}
+                        />
 
-                <ConfigPanel
-                    activeCommand={activeTab?.activeCommand ?? null}
-                    fieldValues={activeTab?.fieldValues ?? {}}
-                    running={activeTab?.running ?? false}
-                    done={activeTab?.done ?? false}
-                    exitOk={activeTab?.exitOk ?? false}
-                    panelHeight={PANEL_H}
-                    previewText={activeTab?.activeCommand ? buildPreview(schema.namespace) : ""}
-                    onUpdateField={handleUpdateField}
-                    onRun={handleRun}
-                />
+                        <ConfigPanel
+                            activeCommand={activeTab?.activeCommand ?? null}
+                            fieldValues={activeTab?.fieldValues ?? {}}
+                            running={activeTab?.running ?? false}
+                            done={activeTab?.done ?? false}
+                            exitOk={activeTab?.exitOk ?? false}
+                            panelHeight={PANEL_H}
+                            previewText={activeTab?.activeCommand ? buildPreview(schema.namespace) : ""}
+                            onUpdateField={handleUpdateField}
+                            onRun={handleRun}
+                        />
+                    </div>
+                </div>
 
+                {/* Right panel */}
                 <TerminalPanel
                     logs={activeTab?.logs ?? []}
                     running={activeTab?.running ?? false}
@@ -320,13 +352,14 @@ export default function PluginRunner() {
                     exitOk={activeTab?.exitOk ?? false}
                     prompt={activeTab?.prompt ?? null}
                     promptInput={activeTab?.promptInput ?? ""}
-                    panelHeight={PANEL_H}
+                    panelHeight={TERMINAL_H}
                     onPromptChange={val => updateTab(activeTabId, { promptInput: val })}
                     onPromptSubmit={handlePromptSubmit}
                     onClear={() => {
                         emit(SocketEvents.RUN_CLEAR, { tab_id: activeTabId });
-                        updateTab(activeTabId, { logs: [], done: false, exitOk: false })}
-                    }
+                        updateTab(activeTabId, { logs: [], done: false, exitOk: false });
+                    }}
+                    onKill={handleKill}
                 />
 
             </div>

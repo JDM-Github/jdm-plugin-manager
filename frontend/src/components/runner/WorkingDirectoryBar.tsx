@@ -22,7 +22,7 @@ export default function WorkingDirectoryBar({
             />
             {workDir && (
                 <button
-                    className="text-[9px] font-mono text-text-faint hover:text-neg transition-colors shrink-0"
+                    className="text-[9px] font-mono text-text-faint hover:text-neg transition-colors shrink-0 cursor-pointer"
                     onClick={() => setWorkDir("")}
                     title="Clear path"
                 >✕</button>
@@ -30,8 +30,8 @@ export default function WorkingDirectoryBar({
             <span className="w-px h-3 bg-border shrink-0" />
             <button
                 className={`flex items-center gap-1.5 text-[9px] font-mono px-2 py-1 rounded-[6px] border transition-all shrink-0 ${loading
-                        ? "border-border text-text-faint cursor-wait"
-                        : "border-border hover:border-accent/40 hover:text-accent text-text-faint"
+                        ? "border-border text-text-faint cursor-not-allowed opacity-50"
+                        : "border-border hover:border-accent/40 hover:text-accent text-text-faint cursor-pointer"
                     }`}
                 onClick={onFetchCwd}
                 disabled={loading}
@@ -39,11 +39,16 @@ export default function WorkingDirectoryBar({
             >
                 {loading ? (
                     <span className="w-2.5 h-2.5 rounded-full border border-t-accent border-text-faint/30 animate-spin" />
-                ) : "⊙"}
+                ) : (
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                        <circle cx="8" cy="8" r="3" />
+                        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M11.54 4.46l-1.41 1.41M4.95 11.54l-1.41 1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                )}
                 Auto
             </button>
             <button
-                className="flex items-center gap-1.5 text-[9px] font-mono px-2 py-1 rounded-[6px] border border-border hover:border-accent/40 hover:text-accent text-text-faint transition-all shrink-0"
+                className="flex items-center gap-1.5 text-[9px] font-mono px-2 py-1 rounded-[6px] border border-border hover:border-accent/40 hover:text-accent text-text-faint transition-all shrink-0 cursor-pointer"
                 onClick={onBrowseFolder}
                 title="Browse for folder"
             >

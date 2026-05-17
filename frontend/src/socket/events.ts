@@ -13,4 +13,6 @@ export const SocketEvents = {
     RUN_RESUME: "run_resume",
     RUN_REPLAY: "run_replay",
     RUN_CLEAR: "run_clear",
+
+    RUN_KILL: "run_kill",
 } as const;

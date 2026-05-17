@@ -16,6 +16,7 @@ type Props = {
     onPromptChange: (val: string) => void;
     onPromptSubmit: () => void;
     onClear: () => void;
+    onKill: () => void;
 };
 
 export default function TerminalPanel({
@@ -29,6 +30,7 @@ export default function TerminalPanel({
     onPromptChange,
     onPromptSubmit,
     onClear,
+    onKill,
 }: Props) {
     const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -52,12 +54,12 @@ export default function TerminalPanel({
                 <div className="flex items-center gap-4">
                     {/* Traffic lights */}
                     <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-neg/40" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-neu/40" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-pos/40" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-neg/90" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-neu/90" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-pos/90" />
                     </div>
 
-                    <span className="text-[9px] font-mono text-text-faint tracking-[0.14em] uppercase">Output</span>
+                    <span className="text-[9px] font-mono text-white/70 tracking-[0.14em] uppercase">Output</span>
 
                     {/* Status badge */}
                     <AnimatePresence mode="wait">
@@ -91,23 +93,46 @@ export default function TerminalPanel({
                     </AnimatePresence>
                 </div>
 
-                {/* Line count + clear */}
+                {/* Right side controls */}
                 <div className="flex items-center gap-3">
+                    {/* Terminate button — only while running */}
+                    <AnimatePresence>
+                        {running && (
+                            <motion.button
+                                key="kill"
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px]
+                                           bg-neg/10 border border-neg/30 text-neg
+                                           text-[9px] font-mono hover:bg-neg/20
+                                           transition-colors cursor-pointer"
+                                onClick={onKill}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-[1px] bg-neg" />
+                                Stop
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Line count + clear */}
                     {logs.length > 0 && (
                         <>
                             <span className="text-[9px] font-mono text-text-faint">{logs.length} lines</span>
-                            <button
-                                className="text-[9px] font-mono text-text-faint hover:text-text transition-colors"
-                                onClick={onClear}
-                            >
-                                Clear
-                            </button>
+                            {!running && (
+                                <button
+                                    className="text-[9px] font-mono text-text-faint hover:text-text transition-colors"
+                                    onClick={onClear}
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
             </div>
 
-            {/* Scrollable log body — user-select: text so output is copyable */}
+            {/* Scrollable log body */}
             <div
                 className="flex-1 overflow-y-auto p-4 flex flex-col gap-1.5"
                 style={{ userSelect: "text" }}
