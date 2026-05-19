@@ -3,3 +3,4 @@ dist/
 outputs/
 resources/
 test/
+.env
