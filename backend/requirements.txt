@@ -1,8 +1,1 @@
-flask
-flask-cors
-python-dotenv
-waitress
-requests
-simple-websocket
-pyarmor
-jdm-electron-flask>=1.0.7
+jdm-electron-flask>=1.0.8

@@ -9,7 +9,7 @@ const CONFIG = {
     },
     // Backend executable (without extension – code adds .exe on Windows)
     backendExeName: "flask_server",
-    // Tray icon file names (place these in your project root or resources folder)
+    // Tray icon file names (place these inside resources/ folder)
     trayIconWin: "icon.ico",
     trayIconOther: "icon.png",
     // Loading HTML file (relative to __dirname)
@@ -27,6 +27,7 @@ const CONFIG = {
 
 const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage } = require("electron");
 const { spawn, execSync } = require("child_process");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const net = require("net");
 const fs = require("fs");
@@ -160,9 +161,11 @@ function getTrayIcon() {
         : CONFIG.trayIconOther;
 
     if (app.isPackaged) {
+        // Icons are copied to process.resourcesPath root via extraResources
         return path.join(process.resourcesPath, iconFile);
     }
-    return path.join(__dirname, iconFile);
+    // In dev, icons live inside resources/
+    return path.join(__dirname, "resources", iconFile);
 }
 
 function buildTrayMenu() {
@@ -203,7 +206,9 @@ function buildTrayMenu() {
 }
 
 function createTray() {
-    const icon = nativeImage.createFromPath(getTrayIcon());
+    const iconPath = getTrayIcon();
+    console.log("[Tray] loading icon from:", iconPath);
+    const icon = nativeImage.createFromPath(iconPath);
     tray = new Tray(icon);
     tray.setToolTip(`${CONFIG.appName} — running in background`);
     tray.setContextMenu(buildTrayMenu());
@@ -251,6 +256,43 @@ function registerIpcHandlers() {
     });
 }
 
+// ======================== AUTO UPDATER ========================
+function initAutoUpdater() {
+    if (!app.isPackaged) return;
+    autoUpdater.checkForUpdates();
+    autoUpdater.on("update-available", (info) => {
+        console.log(`[AutoUpdater] Update available: v${info.version}`);
+        dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Update Available",
+            message: `Version ${info.version} is downloading in the background.\nYou'll be notified when it's ready to install.`,
+            buttons: ["OK"],
+        });
+    });
+    autoUpdater.on("update-not-available", () => {
+        console.log("[AutoUpdater] App is up to date.");
+    });
+    autoUpdater.on("update-downloaded", (info) => {
+        console.log(`[AutoUpdater] Update downloaded: v${info.version}`);
+        dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Update Ready",
+            message: `Version ${info.version} has been downloaded.\nThe app will restart to apply the update.`,
+            buttons: ["Restart Now", "Later"],
+            defaultId: 0,
+            cancelId: 1,
+        }).then(({ response }) => {
+            if (response === 0) {
+                isQuitting = true;
+                autoUpdater.quitAndInstall();
+            }
+        });
+    });
+    autoUpdater.on("error", (err) => {
+        console.error("[AutoUpdater] Error:", err.message);
+    });
+}
+
 // ======================== WINDOW CREATION ========================
 async function createWindow() {
     Menu.setApplicationMenu(null);
@@ -280,6 +322,7 @@ async function createWindow() {
     });
 
     createTray();
+    initAutoUpdater();
 
     // Start backend and connect
     const port = await getFreePort();
